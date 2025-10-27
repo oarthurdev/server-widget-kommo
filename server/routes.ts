@@ -71,12 +71,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get filter parameters from query string
       const filters: any = {};
-      if (req.query.period) filters.period = req.query.period as string;
-      if (req.query.type) filters.type = req.query.type as string;
-      if (req.query.dateFrom) filters.dateFrom = req.query.dateFrom as string;
-      if (req.query.dateTo) filters.dateTo = req.query.dateTo as string;
 
-      const statistics = await kommoService.getTagStatistics(Object.keys(filters).length > 0 ? filters : undefined);
+      if (req.headers.referer) {
+        try {
+          // Cria um objeto URL a partir do referer
+          const refererUrl = new URL(req.headers.referer);
+
+          // Extrai os parâmetros da query string
+          const params = refererUrl.searchParams;
+
+          // Mapeia os filtros conforme a necessidade
+          if (params.get("period")) filters.period = params.get("period");
+          if (params.get("type")) filters.type = params.get("type");
+          if (params.get("date_from")) filters.dateFrom = params.get("date_from");
+          if (params.get("date_to")) filters.dateTo = params.get("date_to");
+        } catch (error) {
+          console.error("Erro ao processar referer:", error);
+        }
+      }
+
+      const statistics = await kommoService.getTagStatistics(
+        Object.keys(filters).length > 0 ? filters : undefined
+      );
+
       res.json(statistics);
     } catch (error: any) {
       console.error('Error getting tag statistics:', error);
