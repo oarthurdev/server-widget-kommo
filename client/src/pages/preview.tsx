@@ -70,9 +70,6 @@ export default function Preview() {
                         >
                           {tag.name}
                         </span>
-                        <span className="text-white text-sm">
-                          <strong>{tag.leadCount}</strong> leads <span className="text-gray-400">(R$0)</span>
-                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
