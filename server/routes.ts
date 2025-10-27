@@ -4,6 +4,12 @@ import { storage } from "./storage";
 import { createKommoService, KommoService } from "./kommo-service";
 import express from "express";
 
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // CORS middleware - allow requests from Kommo domains
   app.use((req, res, next) => {
@@ -34,7 +40,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Serve widget files statically
-  app.use('/widget', express.static('widget'));
+
+  app.use(
+    '/widget',
+    express.static(path.resolve(__dirname, 'widget'), {
+      setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'no-cache');
+      },
+    })
+  );
+
 
   // Kommo API endpoints
   app.get('/api/kommo/tags/statistics', async (req, res) => {
@@ -198,38 +213,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       </head>
       <body>
         <div class="preview-container">
-          <h1>🏷️ Kommo Tag Analytics Widget</h1>
-          <p class="subtitle">Análise visual de leads por tags ativas</p>
-          
           <div class="widget-wrapper">
             <div id="tag-analytics-widget"></div>
-          </div>
-
-          <div class="info">
-            <h2>📦 Como usar este widget no Kommo</h2>
-            <ul>
-              <li>Os arquivos do widget estão na pasta <code>/widget</code></li>
-              <li>Acesse <code>/widget/manifest.json</code>, <code>/widget/script.js</code>, etc.</li>
-              <li>Empacote os arquivos em <code>widget.zip</code> (arquivos na raiz do ZIP)</li>
-              <li>Faça upload em Kommo: Configurações → API → Upload Widget</li>
-              <li>Configure com suas credenciais da API Kommo</li>
-            </ul>
-            
-            <h2>🔧 Arquivos do Widget</h2>
-            <ul>
-              <li><code>manifest.json</code> - Configuração do widget</li>
-              <li><code>script.js</code> - Lógica principal (AMD/RequireJS)</li>
-              <li><code>style.css</code> - Estilos (tema azul escuro)</li>
-              <li><code>i18n/en.json</code> - Traduções em inglês</li>
-              <li><code>i18n/pt.json</code> - Traduções em português</li>
-            </ul>
-
-            <h2>🌐 API Endpoints</h2>
-            <ul>
-              <li><code>GET /api/kommo/tags/statistics</code> - Estatísticas de tags</li>
-              <li><code>GET /api/kommo/tags</code> - Lista todas as tags</li>
-              <li><code>GET /api/kommo/leads</code> - Lista leads com tags</li>
-            </ul>
           </div>
         </div>
 
