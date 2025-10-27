@@ -63,19 +63,52 @@ export class KommoService {
   /**
    * Fetch all leads with their tags
    */
-  async getLeads(limit: number = 250): Promise<KommoLead[]> {
+  async getLeads(limit: number = 250, filters?: { period?: string; type?: string; dateFrom?: string; dateTo?: string }): Promise<KommoLead[]> {
     try {
       const leads: KommoLead[] = [];
       let page = 1;
       let hasMore = true;
 
+      // Build filter params
+      const filterParams: any = {
+        with: 'tags',
+        limit: 50,
+        page: page
+      };
+
+      // Add date filters if provided
+      if (filters?.dateFrom && filters?.dateTo) {
+        filterParams['filter[created_at][from]'] = new Date(filters.dateFrom).getTime() / 1000;
+        filterParams['filter[created_at][to]'] = new Date(filters.dateTo).getTime() / 1000;
+      } else if (filters?.period) {
+        const now = new Date();
+        let from = new Date();
+        
+        switch (filters.period) {
+          case 'today':
+            from.setHours(0, 0, 0, 0);
+            break;
+          case 'yesterday':
+            from.setDate(now.getDate() - 1);
+            from.setHours(0, 0, 0, 0);
+            now.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            from.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            from.setMonth(now.getMonth() - 1);
+            break;
+        }
+        
+        filterParams['filter[created_at][from]'] = Math.floor(from.getTime() / 1000);
+        filterParams['filter[created_at][to]'] = Math.floor(now.getTime() / 1000);
+      }
+
       while (hasMore && leads.length < limit) {
+        filterParams.page = page;
         const response = await this.apiClient.get('/api/v4/leads', {
-          params: {
-            with: 'tags',
-            limit: 50,
-            page: page
-          }
+          params: filterParams
         });
 
         const pageLeads = response.data._embedded?.leads || [];
@@ -96,12 +129,12 @@ export class KommoService {
   /**
    * Calculate tag statistics from leads
    */
-  async getTagStatistics(): Promise<TagStatistics> {
+  async getTagStatistics(filters?: { period?: string; type?: string; dateFrom?: string; dateTo?: string }): Promise<TagStatistics> {
     try {
       // Fetch tags and leads in parallel
       const [allTags, allLeads] = await Promise.all([
         this.getTags(),
-        this.getLeads()
+        this.getLeads(250, filters)
       ]);
 
       // Count leads per tag

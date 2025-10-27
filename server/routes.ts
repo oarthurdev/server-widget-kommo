@@ -69,7 +69,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         kommoService = createKommoService();
       }
 
-      const statistics = await kommoService.getTagStatistics();
+      // Get filter parameters from query string
+      const filters: any = {};
+      if (req.query.period) filters.period = req.query.period as string;
+      if (req.query.type) filters.type = req.query.type as string;
+      if (req.query.dateFrom) filters.dateFrom = req.query.dateFrom as string;
+      if (req.query.dateTo) filters.dateTo = req.query.dateTo as string;
+
+      const statistics = await kommoService.getTagStatistics(Object.keys(filters).length > 0 ? filters : undefined);
       res.json(statistics);
     } catch (error: any) {
       console.error('Error getting tag statistics:', error);

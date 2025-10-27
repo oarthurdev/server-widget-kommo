@@ -2,7 +2,7 @@ define(['jquery'], function($) {
   var TagAnalyticsWidget = function() {
     var self = this;
     var apiBaseUrl = '';
-    
+
     // Initialize API base URL from widget settings
     this.getApiBaseUrl = function() {
       if (!apiBaseUrl) {
@@ -18,19 +18,49 @@ define(['jquery'], function($) {
       return apiBaseUrl;
     };
 
+    // Parse URL parameters for filters
+    this.parseUrlFilters = function() {
+      var params = {};
+      var urlParams = new URLSearchParams(window.location.search);
+
+      // Check for period parameter
+      if (urlParams.has('period')) {
+        params.period = urlParams.get('period');
+      }
+
+      // Check for custom date range
+      if (urlParams.has('from') && urlParams.has('to')) {
+        params.dateFrom = urlParams.get('from');
+        params.dateTo = urlParams.get('to');
+      }
+
+      // Check for type parameter
+      if (urlParams.has('type')) {
+        params.type = urlParams.get('type');
+      }
+
+      return params;
+    },
+
     // Fetch tag statistics from backend
     this.fetchTagStats = function() {
+      var self = this;
       return new Promise(function(resolve, reject) {
-        var settings = self.get_settings();
-        
+        var filters = self.parseUrlFilters();
+        var queryString = $.param(filters);
+        var url = self.getApiBaseUrl() + '/tags/statistics';
+        if (queryString) {
+          url += '?' + queryString;
+        }
+
         $.ajax({
-          url: self.getApiBaseUrl() + '/tags/statistics',
+          url: url,
           method: 'GET',
           dataType: 'json',
           headers: {
             'X-Widget-Settings': JSON.stringify({
-              apiKey: settings.api_key || '',
-              domain: settings.domain || ''
+              apiKey: self.get_settings().api_key || '',
+              domain: self.get_settings().domain || ''
             })
           },
           success: function(data) {
@@ -47,7 +77,7 @@ define(['jquery'], function($) {
     // Render the tag analytics dashboard
     this.renderDashboard = function() {
       var $container = $('#tag-analytics-widget');
-      
+
       if ($container.length === 0) {
         return;
       }
@@ -72,7 +102,7 @@ define(['jquery'], function($) {
       var totalLeads = data.totalLeads || 0;
 
       var html = '<div class="tag-analytics-container">';
-      
+
       // Header with total count
       html += '<div class="tag-header">';
       html += '<div class="tag-title">' + i18n.title + '</div>';
@@ -86,14 +116,14 @@ define(['jquery'], function($) {
 
       // Tags list
       html += '<div class="tag-list">';
-      
+
       if (tags.length === 0) {
         html += '<div class="tag-empty">' + i18n.no_tags + '</div>';
       } else {
         tags.forEach(function(tag, index) {
           var percentage = totalLeads > 0 ? Math.round((tag.leadCount / totalLeads) * 100) : 0;
           var tagColor = tag.color || self.getTagColor(index);
-          
+
           html += '<div class="tag-item" data-testid="tag-item-' + tag.id + '">';
           html += '<div class="tag-item-header">';
           html += '<span class="tag-name" style="background-color: ' + tagColor + '">' + tag.name + '</span>';
@@ -113,7 +143,7 @@ define(['jquery'], function($) {
           html += '<div class="tag-others">' + i18n.others + ' <strong>' + data.othersCount + '</strong></div>';
         }
       }
-      
+
       html += '</div>';
       html += '</div>';
 
@@ -146,8 +176,33 @@ define(['jquery'], function($) {
     // Card SDK callbacks (required but adapted for tags)
     this.callbacks = {
       // Called when widget initializes
-      render: function() {
-        console.log('Tag Analytics Widget rendered');
+      render: function(params) {
+        var self = this;
+        var $container = $(self.settings.widget_code_container);
+
+        // Show loading state
+        $container.html('<div class="tag-loading">Carregando dados de tags...</div>');
+
+        // Function to update data
+        var updateData = function() {
+          self.fetchTagStats().then(function(data) {
+            var html = self.buildDashboardHTML(data);
+            $container.html(html);
+          }).catch(function(error) {
+            console.error('Error rendering widget:', error);
+            $container.html('<div class="tag-error">Erro ao carregar dados de tags</div>');
+          });
+        };
+
+        // Initial load
+        updateData();
+
+        // Auto-refresh every 30 seconds
+        if (self.refreshInterval) {
+          clearInterval(self.refreshInterval);
+        }
+        self.refreshInterval = setInterval(updateData, 30000);
+
         return true;
       },
 
@@ -160,14 +215,14 @@ define(['jquery'], function($) {
       // Bind widget actions
       bind_actions: function() {
         var area = self.system().area;
-        
+
         // Render dashboard in card areas
         if (area === 'lcard' || area === 'ccard' || area === 'comcard') {
           setTimeout(function() {
             self.renderDashboard();
           }, 500);
         }
-        
+
         return true;
       },
 
@@ -175,36 +230,36 @@ define(['jquery'], function($) {
       settings: function() {
         var settings = self.get_settings();
         var i18n = self.i18n('settings');
-        
+
         var html = '<div class="widget_settings_block">';
         html += '<div class="widget_settings_block__title">' + i18n.title + '</div>';
         html += '<div class="widget_settings_block__descr"></div>';
-        
+
         html += '<div class="settings-form">';
         html += '<div class="form-group">';
         html += '<label>' + i18n.backend_url + '</label>';
         html += '<input type="text" class="js-widget-input" name="backend_url" value="' + (settings.backend_url || '') + '" placeholder="https://your-replit.repl.co" />';
         html += '</div>';
-        
+
         html += '<div class="form-group">';
         html += '<label>' + i18n.api_key + '</label>';
         html += '<input type="text" class="js-widget-input" name="api_key" value="' + (settings.api_key || '') + '" />';
         html += '</div>';
-        
+
         html += '<div class="form-group">';
         html += '<label>' + i18n.domain + '</label>';
         html += '<input type="text" class="js-widget-input" name="domain" value="' + (settings.domain || '') + '" placeholder="yourdomain.kommo.com" />';
         html += '</div>';
-        
+
         html += '<div class="form-group">';
         html += '<label>' + i18n.refresh_interval + '</label>';
         html += '<input type="number" class="js-widget-input" name="refresh_interval" value="' + (settings.refresh_interval || '60') + '" min="30" max="3600" />';
         html += '</div>';
         html += '</div>';
         html += '</div>';
-        
+
         $('.widget_settings_block__descr').html(html);
-        
+
         return true;
       },
 
@@ -217,6 +272,9 @@ define(['jquery'], function($) {
       // Destroy widget
       destroy: function() {
         console.log('Tag Analytics Widget destroyed');
+        if (self.refreshInterval) {
+          clearInterval(self.refreshInterval);
+        }
       },
 
       // Card SDK: Load preloaded data (tags as "products")
@@ -262,7 +320,7 @@ define(['jquery'], function($) {
             var filtered = (data.tags || []).filter(function(tag) {
               return tag.name.toLowerCase().indexOf(query.toLowerCase()) !== -1;
             });
-            
+
             var items = filtered.map(function(tag) {
               return {
                 id: tag.id,
@@ -271,7 +329,7 @@ define(['jquery'], function($) {
                 price: String(tag.leadCount)
               };
             });
-            
+
             resolve(items);
           }).catch(function(error) {
             reject(error);
