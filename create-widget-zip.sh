@@ -18,6 +18,7 @@ zip -r ../kommo-tag-analytics.zip \
   style.css \
   index.html \
   i18n/ \
+  images/ \
   -x "*.DS_Store" \
   -x "__MACOSX/*" \
   -x "README.md"
