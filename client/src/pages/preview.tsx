@@ -1,7 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 
 interface TagData {
   id: number;
@@ -19,8 +18,9 @@ interface TagStatistics {
 }
 
 export default function Preview() {
-  const { data, isLoading, error } = useQuery<TagStatistics>({
+  const { data, error } = useQuery<TagStatistics>({
     queryKey: ['/api/kommo/tags/statistics'],
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
 
   const getTagColor = (index: number) => {
@@ -41,11 +41,7 @@ export default function Preview() {
               borderRadius: '12px'
             }}>
         <CardContent className="p-6">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="text-red-400 text-center py-8">
               Erro ao carregar dados
             </div>
